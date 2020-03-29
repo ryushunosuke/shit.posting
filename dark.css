@@ -1,0 +1,23 @@
+         a:link{
+               text-decoration:none;
+         }
+         body {
+               background: #141414;
+         }
+         a {
+               color: #fdb558;
+         }
+         article {
+               color: white;
+         }
+         code {
+               color: #fff;
+         }
+         .editing {
+               max-width: inherit;
+               width: 100%;
+         }
+         .editing-img{
+               padding: 5px;
+               margin: 5px;
+         }
