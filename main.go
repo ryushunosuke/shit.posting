@@ -50,6 +50,9 @@ func (h *APIHandler) ServeJSON(w http.ResponseWriter, r *http.Request) {
 	}
 	rows, err := QueryLikeItem(Query)
 	defer rows.Close()
+	if err != nil {
+		return
+	}
 	var items []Item
 	for rows.Next() {
 		var received Item
@@ -91,6 +94,7 @@ func (h *APIHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func ServeUser(w http.ResponseWriter, r *http.Request) {
 	var Folder string
 	var file bool
+	w.Header().Set("Access-Control-Allow-Origin", "*")
 	Folder = string([]rune(r.URL.Path)[:strings.LastIndex(r.URL.Path, "/")])
 	for _, x := range config.Folders {
 		if Folder == x {

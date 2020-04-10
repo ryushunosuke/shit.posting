@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"runtime/debug"
 )
 
 // File is used for writing into the database from a folder.
@@ -31,6 +32,7 @@ func ProcFolders(Folders []string) {
 			panic(err)
 		}
 		for _, file := range files {
+			debug.FreeOSMemory() // Used due to windoms problems.
 			ftype, err := GetFileType(folder + "/" + file.Name())
 			if err != nil {
 				panic(err)
@@ -59,8 +61,8 @@ func ProcFolders(Folders []string) {
 
 			} else {
 				row := QuerySha(Hashed)
-				var Value Item
-				var between string
+				Value := Item{}
+				between := ""
 				row.Scan(&between)
 				json.Unmarshal([]byte(between), &Value)
 				Dupe := false
@@ -74,7 +76,8 @@ func ProcFolders(Folders []string) {
 				}
 				Value.Sha1 = Hashed
 				Value.File = append(Value.File, folder+"/"+file.Name())
-				UpdateLocation(Value)
+				UpdateRow(Value)
+				// UpdateLocation(Value)
 				fmt.Printf("Updated " + Value.Sha1 + " in the database.\n")
 
 			}
