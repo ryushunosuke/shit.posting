@@ -21,3 +21,47 @@
                padding: 5px;
                margin: 5px;
          }
+
+         .image-overlay{
+            width: 100%;
+            position: absolute;
+            height: 100%;
+            top: 0;
+            left: 0;
+         }
+
+        .textinput {
+            text-align: center;
+            background-color: transparent;
+            color: white;
+            border-width: 1px;
+            border-color: rgb(55, 55, 55);
+            flex-grow: 100;
+        }
+        .textinput:hover{
+            flex-grow: 400;
+            background-color: rgb(35,35,35);
+        }
+
+        .item-container {
+            word-break: break-word;
+            word-wrap: break-word;
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        #div-container {
+            display: flex;
+            flex-wrap: wrap;
+            flex-direction: row;
+        }
+
+        article {
+            border: 1px solid #202020;
+            margin: 2px;
+            padding: 10px;
+            max-width: 180px;
+
+        }
+        

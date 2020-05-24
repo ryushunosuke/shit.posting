@@ -1,0 +1,15 @@
+{
+    "FileTypes":[
+        "png",
+        "jpg",
+        "mp4",
+        "webm"
+    ],
+    "Port":"8000",
+    "DB":"port=5432 host=localhost user=shitposting password=shitposting dbname=shitposting sslmode=disable",
+    "Folders":[
+        "/home/user/downloads/super important images"
+    ],
+    "Thumbnail":"./thumbnail/"
+
+}

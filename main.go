@@ -11,34 +11,64 @@ import (
 	"github.com/lib/pq"
 )
 
-// CREATE USER shitposting WITH LOGIN PASSWORD 'hunter2'
+// Startup instructions, Follow installation.md if you don't know what you are doing.:
+// CREATE USER shitposting WITH LOGIN PASSWORD 'shitposting'
 // create database shitposting
 // create table items (item jsonb NOT NULL)
 
-// select * from items where item->'tags' @> '["tag"]';
+// Global variables.
+var (
+	db  *sql.DB
+	pqd *pq.Driver
+)
 
-// insert into items (item) values ('{"file": "/location", "tags": ["1"], "thumbnail": "thumbnail/location", "sha1":"9977"}');
-
-var db *sql.DB
-var pqd *pq.Driver
-
-// Item is the main json used to read from and write to the database.
+// Item is the main json used to read from and write to the database, and to communicate with the HTML front-end.
 type Item struct {
 	File      []string `json:"location"`
 	Thumbnail string   `json:"thumbnail"`
 	Tags      []string `json:"tags"`
 	Sha1      string   `json:"sha1"`
+	Mode      bool     `json:"strict"`
 }
 
 // APIHandler is the handler for /API. Holds the functions needed to handle cases of /API/{handle}
 type APIHandler struct {
-	Functions map[string]func(http.ResponseWriter, *http.Request)
+	Dirs map[string]*Directory
 }
 
-// AddFunction is experimental and might be used for adding new handlers during runtime
-// Keep in mind that functions added during runtime will not be kept for future runs.
-func (h *APIHandler) AddFunction(name string, function func(http.ResponseWriter, *http.Request)) {
-	h.Functions[name] = function
+//Directory is to tree the handles.
+type Directory struct {
+	Function func(http.ResponseWriter, *http.Request)
+	Dirs     map[string]*Directory
+}
+
+func (d *Directory) init() {
+	// d.Function = func(http.ResponseWriter, *http.Request) {}
+	d.Function = nil
+	d.Dirs = make(map[string]*Directory)
+}
+
+// AddFunction is used to add functions to the Handler.
+// Keep in mind that if you somehow add functions during runtime, they will not be kept for future runs.
+func (h *APIHandler) AddFunction(dir []string, function func(http.ResponseWriter, *http.Request)) {
+	var _, ok = h.Dirs[dir[0]]
+	if !ok {
+		h.Dirs[dir[0]] = &Directory{nil, make(map[string]*Directory)}
+	}
+	var Dir = h.Dirs[dir[0]]
+
+	for _, v := range dir[1:] {
+		_, ok = Dir.Dirs[v]
+		if !ok {
+			// Dir.Dirs[v] = Directory{func(http.ResponseWriter, *http.Request) {}, make(map[string]Directory)}
+			d := Directory{}
+			d.init()
+			Dir.Dirs[v] = &Directory{nil, make(map[string]*Directory)}
+		}
+		Dir = Dir.Dirs[v]
+	}
+	Dir.Function = function
+
 }
 
 // ServeJSON serves back query results in json format.
@@ -48,22 +78,7 @@ func (h *APIHandler) ServeJSON(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		return
 	}
-	rows, err := QueryLikeItem(Query)
-	defer rows.Close()
-	if err != nil {
-		return
-	}
-	var items []Item
-	for rows.Next() {
-		var received Item
-		var testing string
-		err := rows.Scan(&testing)
-		if err != nil {
-			// log.Println(err)
-		}
-		json.Unmarshal([]byte(testing), &received)
-		items = append(items, received)
-	}
+	items := QueryLikeItem(Query)
 	ToSend, err := json.Marshal(items)
 	if err != nil {
 		return
@@ -82,40 +97,43 @@ func (h *APIHandler) UpdateTag(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("OK"))
 }
 
+// ServeHTTP is the main point of entry to APIHandler.
 func (h *APIHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	Args := mux.Vars(r)
-	Func, ok := h.Functions[Args["handle"]+Args["method"]]
-	if ok {
-		Func(w, r)
+	Args := strings.Split(r.RequestURI[5:], "/")
+	dirs := h.Dirs[Args[0]]
+	for _, v := range Args[1:] {
+		if dirs.Dirs == nil {
+			http.NotFound(w, r)
+		}
+		dirs = dirs.Dirs[v]
 	}
+	if dirs.Function == nil {
+		http.NotFound(w, r)
+	}
+	Func := dirs.Function
+	Func(w, r)
 }
 
 // ServeUser serves the main index page to the user.
 func ServeUser(w http.ResponseWriter, r *http.Request) {
-	var Folder string
-	var file bool
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-	Folder = string([]rune(r.URL.Path)[:strings.LastIndex(r.URL.Path, "/")])
-	for _, x := range config.Folders {
-		if Folder == x {
-			file = true
-		}
+	p := "." + r.URL.Path
+	if p == "./" {
+		p = "./main.html"
 	}
-	if file {
-		http.ServeFile(w, r, r.URL.Path)
+	http.ServeFile(w, r, p)
 
-	} else {
-		p := "." + r.URL.Path
-		if p == "./" {
-			p = "./main.html"
-		}
-		http.ServeFile(w, r, p)
-	}
 }
 
-// func ServeThumbnail(w http.ResponseWriter, r * http.Request){
+// ViewFile is used to serve the file.
+func ViewFile(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
 
-// }
+	file := mux.Vars(r)["file"]
+	Value := QuerySha(file)
+
+	http.ServeFile(w, r, Value[0].File[0])
+
+}
 
 func main() {
 	var err error
@@ -126,13 +144,13 @@ func main() {
 
 	r := mux.NewRouter()
 	api := APIHandler{
-		Functions: make(map[string]func(http.ResponseWriter, *http.Request)),
+		Dirs: make(map[string]*Directory),
 	}
-	api.AddFunction("JSONQuery", api.ServeJSON)
-	api.AddFunction("JSONUpdateTag", api.UpdateTag)
-	r.PathPrefix("/API/{handle}/{method}").Handler(&api)
+	api.AddFunction([]string{"JSON", "Query"}, api.ServeJSON)
+	api.AddFunction([]string{"JSON", "UpdateTag"}, api.UpdateTag)
+	r.PathPrefix("/API/").Handler(&api)
+	r.PathPrefix("/view/{file}").HandlerFunc(ViewFile)
 	r.PathPrefix("/").HandlerFunc(ServeUser)
-	// r.PathPrefix("/thumbnail/").HandlerFunc(ServeThumbnail)
 
 	srv := &http.Server{
 		Handler:      r,

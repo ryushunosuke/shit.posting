@@ -2,18 +2,11 @@ package main
 
 import (
 	"crypto/sha1"
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"runtime/debug"
 )
-
-// File is used for writing into the database from a folder.
-// type File struct {
-// 	Location string
-// 	Sha1     string
-// }
 
 // Sha1 returns the sha1 hashed string value.
 func Sha1(data []byte) string {
@@ -41,7 +34,7 @@ func ProcFolders(Folders []string) {
 			if !config.TypeMap[ftype] {
 				continue
 			}
-			if file.Size() > 3*1024*1024*1024 {
+			if file.Size() > config.Filesize { // Max file size.
 				continue
 			}
 			f, err := ioutil.ReadFile(folder + "/" + file.Name())
@@ -49,22 +42,18 @@ func ProcFolders(Folders []string) {
 			if err != nil {
 				panic(err)
 			}
-			if !ThumbnailExists(Hashed + ".jpg") {
+			if !ThumbnailExists(Hashed) {
 				ThumbnailFile(folder+"/"+file.Name(), Hashed)
 			}
 			if !ExistsWithinDB(Hashed) {
 				AddItem(Item{File: []string{folder + "/" + file.Name()}, Thumbnail: "thumbnail/" + Hashed + ".jpg", Sha1: Hashed})
-				if !ThumbnailExists(Hashed + ".jpg") {
+				if !ThumbnailExists(Hashed) {
 					ThumbnailFile(folder+"/"+file.Name(), Hashed)
 				}
 				fmt.Printf("Added " + Hashed + " to the database.\n")
 
 			} else {
-				row := QuerySha(Hashed)
-				Value := Item{}
-				between := ""
-				row.Scan(&between)
-				json.Unmarshal([]byte(between), &Value)
+				Value := QuerySha(Hashed)[0]
 				Dupe := false
 				for _, a := range Value.File {
 					if a == folder+"/"+file.Name() {
@@ -77,7 +66,6 @@ func ProcFolders(Folders []string) {
 				Value.Sha1 = Hashed
 				Value.File = append(Value.File, folder+"/"+file.Name())
 				UpdateRow(Value)
-				// UpdateLocation(Value)
 				fmt.Printf("Updated " + Value.Sha1 + " in the database.\n")
 
 			}
@@ -92,7 +80,7 @@ func ProcFolders(Folders []string) {
 
 // ThumbnailExists checks if the given file has a thumbnail in the path ./thumbnail/{sha1}.{ftype}
 func ThumbnailExists(Path string) bool {
-	_, err := os.Stat("./thumbnail/" + Path)
+	_, err := os.Stat("./thumbnail/" + Path + ".jpg")
 	if os.IsNotExist(err) {
 		return false
 	}

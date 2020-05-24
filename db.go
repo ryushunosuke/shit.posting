@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"log"
 	"strings"
 )
@@ -37,9 +38,6 @@ func UpdateLocation(Value Item) {
 	db.Query(`UPDATE items SET item = jsonb_set(item, '{location}', '["` + strings.Join(Value.File, `","`) + `"]') where item->>'sha1' = '` + Value.Sha1 + `';`)
 }
 
-// UpdateTags is used to update the existing tags of an item with the same sha1 as Value
-// Func UpdateTags(Value Item){}
-
 // UpdateRow removes the item with the same sha1 as Value and adds Value into the database.
 func UpdateRow(Value Item) {
 	db.Query(`DELETE from items where item @> '{"sha1":"` + Value.Sha1 + `"}'`)
@@ -56,22 +54,23 @@ func AddItem(Value Item) {
 }
 
 // QuerySha is used to query the database to find an item with a given hash.
-func QuerySha(Hash string) *sql.Row {
-	return db.QueryRow(`select * from items where item @> '{"sha1":"` + Hash + `"}'`)
+func QuerySha(Hash string) []Item {
+	return QueryToItemArray(db.Query(`select * from items where item @> '{"sha1":"` + Hash + `"}'`))
 }
 
-// QueryLikeItem returns rows that are like Value.
-func QueryLikeItem(Value Item) (*sql.Rows, error) {
+// StrictQuery is used to query using exact match.
+func StrictQuery(Value Item) []Item {
 	var where []string
 	s := "select * from items "
 	if len(Value.Tags) != 0 {
 		if Value.Tags[0] == "not null" { // Special case to return items that have tags.
-			return db.Query("select * from items where item->>'tags' is not null")
+			return QueryToItemArray(db.Query("select * from items where item->>'tags' is not null"))
+		} else if Value.Tags[0] != "" {
+			s := `item->'tags' @> '["` + strings.Join(Value.Tags, `","`) + `"]'`
+			where = append(where, s)
 		}
-		s := `item->'tags' @> '["` + strings.Join(Value.Tags, `","`) + `"]'`
-		where = append(where, s)
 	}
-	if len(Value.File) != 0 {
+	if len(Value.File) != 0 && Value.File[0] != "" {
 		s := `item->'location' @> '["` + strings.Join(Value.File, `","`) + `"]'`
 		where = append(where, s)
 	}
@@ -82,8 +81,64 @@ func QueryLikeItem(Value Item) (*sql.Rows, error) {
 		where = append(where, `item @> '{"sha1":"`+Value.Sha1+`"}'`)
 	}
 	if len(Value.Tags) != 0 || len(Value.File) != 0 || Value.Sha1 != "" || Value.Thumbnail != "" {
-		s = `select * from items where ` + strings.Join(where, " OR ")
+		s = `select * from items where ` + strings.Join(where, " AND ")
 	}
 
-	return db.Query(s)
+	return QueryToItemArray(db.Query(s))
+}
+
+//SubstrQuery queries using *any* matchup.
+func SubstrQuery(Value Item) []Item {
+	var where []string
+	s := "select * from items "
+	if len(Value.Tags) != 0 {
+		if Value.Tags[0] == "not null" { // Special case to return items that have tags.
+			return QueryToItemArray(db.Query("select * from items where item->>'tags' is not null"))
+		} else if Value.Tags[0] != "" {
+			s := `item->>'tags' ~ '` + strings.Join(Value.Tags, `' AND item->>'tags' ~ '`) + `'`
+			where = append(where, s)
+		}
+	}
+	if len(Value.File) != 0 && Value.File[0] != "" {
+		s := `item->>'location' ~ '` + Value.File[0] + `'`
+		where = append(where, s)
+	}
+	if Value.Thumbnail != "" {
+		where = append(where, `item @> '{"thumbnail":"`+Value.Thumbnail+`"}'`)
+	}
+	if Value.Sha1 != "" {
+		where = append(where, `item->>'sha1' ~ '`+Value.Sha1+`'`)
+	}
+	if len(Value.Tags) != 0 || len(Value.File) != 0 || Value.Sha1 != "" || Value.Thumbnail != "" {
+		s = `select * from items where ` + strings.Join(where, " AND ")
+	}
+	fmt.Println(s)
+	return QueryToItemArray(db.Query(s))
+}
+
+// QueryLikeItem returns rows that are like Value.
+func QueryLikeItem(Value Item) []Item {
+	if !Value.Mode {
+		return StrictQuery(Value)
+	}
+	return SubstrQuery(Value)
+
+}
+
+//QueryToItemArray takes a query and turns turns them into Item objects then returns them all in an array.
+func QueryToItemArray(rows *sql.Rows, err error) []Item {
+	defer rows.Close()
+
+	var items []Item
+	for rows.Next() {
+		var received Item
+		var testing string
+		err := rows.Scan(&testing)
+		if err != nil {
+			log.Println(err)
+		}
+		json.Unmarshal([]byte(testing), &received)
+		items = append(items, received)
+	}
+	return items
 }
