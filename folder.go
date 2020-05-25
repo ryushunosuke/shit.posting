@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"runtime/debug"
 )
 
 // Sha1 returns the sha1 hashed string value.
@@ -25,13 +24,9 @@ func ProcFolders(Folders []string) {
 			panic(err)
 		}
 		for _, file := range files {
-			debug.FreeOSMemory() // Used due to windoms problems.
-			ftype, err := GetFileType(folder + "/" + file.Name())
-			if err != nil {
-				panic(err)
-			}
+			ftype := GetFileType(folder + "/" + file.Name())
 			ftype = Convert(ftype)
-			if !config.TypeMap[ftype] {
+			if _, ok := config.TypeMap[ftype]; !ok {
 				continue
 			}
 			if file.Size() > config.Filesize { // Max file size.
@@ -41,6 +36,11 @@ func ProcFolders(Folders []string) {
 				File: []string{folder + "/" + file.Name()},
 			})
 			if len(Test) != 0 && Test[0].Size == file.Size() { // An item with the same location and size is already within the database.
+
+				Hashed := Test[0].Sha1
+				if !ThumbnailExists(Hashed) {
+					ThumbnailFile(folder+"/"+file.Name(), Hashed)
+				}
 				continue
 			}
 			if len(Test) != 0 && Test[0].Size == 0 {
@@ -58,14 +58,18 @@ func ProcFolders(Folders []string) {
 				ThumbnailFile(folder+"/"+file.Name(), Hashed)
 			}
 			if !ExistsWithinDB(Hashed) {
-				AddItem(Item{File: []string{folder + "/" + file.Name()}, Thumbnail: "thumbnail/" + Hashed + ".jpg", Sha1: Hashed})
+				AddItem(Item{File: []string{folder + "/" + file.Name()}, Thumbnail: "thumbnail/" + Hashed + ".jpg", Sha1: Hashed, Size: file.Size()})
 				if !ThumbnailExists(Hashed) {
 					ThumbnailFile(folder+"/"+file.Name(), Hashed)
 				}
 				fmt.Printf("Added %s to the database.\n", Hashed)
 
 			} else {
-				Value := QuerySha(Hashed)[0]
+				Arr := QuerySha(Hashed)
+				if len(Arr) == 0 {
+					continue
+				}
+				Value := Arr[0]
 				Dupe := false
 				for _, a := range Value.File {
 					if a == folder+"/"+file.Name() {
@@ -92,7 +96,7 @@ func ProcFolders(Folders []string) {
 
 // ThumbnailExists checks if the given file has a thumbnail in the path ./thumbnail/{sha1}.{ftype}
 func ThumbnailExists(Path string) bool {
-	_, err := os.Stat("./thumbnail/" + Path + ".jpg")
+	_, err := os.Stat(config.ThumbnailFolder + "/" + Path + ".jpg")
 	if os.IsNotExist(err) {
 		return false
 	}

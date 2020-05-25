@@ -135,6 +135,9 @@ func QueryLikeItem(Value Item) []Item {
 
 //QueryToItemArray takes a query and turns turns them into Item objects then returns them all in an array.
 func QueryToItemArray(rows *sql.Rows, err error) []Item {
+	if rows == nil {
+		return []Item{}
+	}
 	defer rows.Close()
 
 	var items []Item

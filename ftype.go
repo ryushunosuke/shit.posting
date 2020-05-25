@@ -2,12 +2,13 @@ package main
 
 import (
 	"bytes"
+	"log"
 	"os/exec"
 )
 
 // GetFileType returns the file type of the probed content.
 // Doesn't return png, webm, jpg or anything like that. Do your own matching for your case.
-func GetFileType(Path string) (Type string, err error) {
+func GetFileType(Path string) (Type string) {
 	Cmd := exec.Command("ffprobe", "-v", "error",
 		"-select_streams", "v:0",
 		"-show_entries", "format=format_long_name",
@@ -15,17 +16,18 @@ func GetFileType(Path string) (Type string, err error) {
 		Path)
 	var OutBuf bytes.Buffer
 	Cmd.Stdout = &OutBuf
-	err = Cmd.Start()
+	err := Cmd.Run()
 	if err != nil {
-		panic(err)
-	}
-	Cmd.Wait()
-	if err != nil {
-		panic(err)
+
+		log.Println("File ", Path, "lead to ", err.Error())
+		return ""
 	}
 	s := OutBuf.Bytes()
 	Type = string(s[:])
-	return Type, err
+	Cmd.Stdout = nil
+
+	Cmd.Process.Kill()
+	return Type
 
 }
 
@@ -43,7 +45,7 @@ func Convert(s string) (Type string) {
 	case "Animated Computer Image Graphic (GIF)\n":
 		Type = "gif"
 	default:
-
+		Type = ""
 	}
 	return
 }
