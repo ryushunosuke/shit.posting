@@ -10,6 +10,7 @@
     "Folders":[
         "/home/user/downloads/super important images"
     ],
-    "Thumbnail":"./thumbnail/"
+    "Thumbnail":"./thumbnail/",
+    "Filesize":"3GB"
 
 }

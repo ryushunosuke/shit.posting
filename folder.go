@@ -37,6 +37,18 @@ func ProcFolders(Folders []string) {
 			if file.Size() > config.Filesize { // Max file size.
 				continue
 			}
+			Test := QueryLikeItem(Item{
+				File: []string{folder + "/" + file.Name()},
+			})
+			if len(Test) != 0 && Test[0].Size == file.Size() { // An item with the same location and size is already within the database.
+				continue
+			}
+			if len(Test) != 0 && Test[0].Size == 0 {
+				Test[0].Size = file.Size()
+				UpdateRow(Test[0])
+				fmt.Printf("Updated size of item with hash %s to size %d\n", Test[0].Sha1, Test[0].Size)
+				continue
+			}
 			f, err := ioutil.ReadFile(folder + "/" + file.Name())
 			Hashed := Sha1(f)
 			if err != nil {
@@ -50,7 +62,7 @@ func ProcFolders(Folders []string) {
 				if !ThumbnailExists(Hashed) {
 					ThumbnailFile(folder+"/"+file.Name(), Hashed)
 				}
-				fmt.Printf("Added " + Hashed + " to the database.\n")
+				fmt.Printf("Added %s to the database.\n", Hashed)
 
 			} else {
 				Value := QuerySha(Hashed)[0]

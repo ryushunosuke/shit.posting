@@ -73,7 +73,7 @@ function HandleItem(item) {
         tags = this.value.split(",")
         b = new FormData()
         b.append("Query", JSON.stringify(item))
-        fetch("http://localhost:8000/API/JSON/Query", {
+        fetch(`http://${location.host}/API/JSON/Query`, {
             method: "POST",
             body: b,
         }).then(
@@ -174,14 +174,10 @@ function UpdateTag(item) {
     b = new FormData()
 
     b.append("item", JSON.stringify(item))
-    fetch("http://localhost:8000/API/JSON/UpdateTag", {
+    fetch(`http://${location.host}/API/JSON/UpdateTag`, {
         method: "POST",
         body: b,
-    }).then(
-        response => response.body
-    ).then(
-        body => console.log(body)
-    );
+    });
 
 
 }
@@ -190,7 +186,7 @@ function UpdateTag(item) {
 function GetQuery(item) {
     b = new FormData()
     b.append("Query", JSON.stringify(item))
-    fetch("http://localhost:8000/API/JSON/Query", {
+    fetch(`http://${location.host}/API/JSON/Query`, {
         method: "POST",
         body: b,
     }).then(

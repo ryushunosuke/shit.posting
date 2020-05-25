@@ -22,15 +22,6 @@ var (
 	pqd *pq.Driver
 )
 
-// Item is the main json used to read from and write to the database, and to communicate with the HTML front-end.
-type Item struct {
-	File      []string `json:"location"`
-	Thumbnail string   `json:"thumbnail"`
-	Tags      []string `json:"tags"`
-	Sha1      string   `json:"sha1"`
-	Mode      bool     `json:"strict"`
-}
-
 // APIHandler is the handler for /API. Holds the functions needed to handle cases of /API/{handle}
 type APIHandler struct {
 	Dirs map[string]*Directory

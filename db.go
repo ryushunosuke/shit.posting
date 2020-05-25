@@ -3,10 +3,19 @@ package main
 import (
 	"database/sql"
 	"encoding/json"
-	"fmt"
 	"log"
 	"strings"
 )
+
+// Item is the main json used to read from and write to the database, and to communicate with the HTML front-end.
+type Item struct {
+	File      []string `json:"location"`
+	Thumbnail string   `json:"thumbnail"`
+	Tags      []string `json:"tags"`
+	Sha1      string   `json:"sha1"`
+	Mode      bool     `json:"strict"`
+	Size      int64    `json:"size"`
+}
 
 func initDB() {
 	var err error
@@ -112,7 +121,6 @@ func SubstrQuery(Value Item) []Item {
 	if len(Value.Tags) != 0 || len(Value.File) != 0 || Value.Sha1 != "" || Value.Thumbnail != "" {
 		s = `select * from items where ` + strings.Join(where, " AND ")
 	}
-	fmt.Println(s)
 	return QueryToItemArray(db.Query(s))
 }
 
