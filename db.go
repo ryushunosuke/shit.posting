@@ -44,12 +44,22 @@ func ExistsWithinDB(Sha1 string) bool {
 
 // UpdateLocation is used to update the location of a file in the database with the same sha1 as the one given as an argument.
 func UpdateLocation(Value Item) {
-	db.Query(`UPDATE items SET item = jsonb_set(item, '{location}', '["` + strings.Join(Value.File, `","`) + `"]') where item->>'sha1' = '` + Value.Sha1 + `';`)
+	rows, err := db.Query(`UPDATE items SET item = jsonb_set(item, '{location}', '["` + strings.Join(Value.File, `","`) + `"]') where item->>'sha1' = '` + Value.Sha1 + `';`)
+	if err != nil {
+		log.Println(err.Error())
+		return
+	}
+	if rows != nil {
+		rows.Close()
+	}
 }
 
 // UpdateRow removes the item with the same sha1 as Value and adds Value into the database.
 func UpdateRow(Value Item) {
-	db.Query(`DELETE from items where item @> '{"sha1":"` + Value.Sha1 + `"}'`)
+	rows, err := db.Query(`DELETE from items where item @> '{"sha1":"` + Value.Sha1 + `"}'`)
+	if err == nil && rows != nil {
+		rows.Close()
+	}
 	AddItem(Value)
 }
 
@@ -57,9 +67,17 @@ func UpdateRow(Value Item) {
 func AddItem(Value Item) {
 	marsh, err := json.Marshal(Value)
 	if err != nil {
-		panic(err)
+		log.Println(err.Error())
+		return
 	}
-	db.Query(`insert into items (item) values ('` + string(marsh) + `')`)
+	rows, err := db.Query(`insert into items (item) values ('` + string(marsh) + `')`)
+	if err != nil {
+		log.Println(err.Error())
+		return
+	}
+	if rows != nil {
+		rows.Close()
+	}
 }
 
 // QuerySha is used to query the database to find an item with a given hash.
