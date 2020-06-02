@@ -73,7 +73,7 @@ function HandleItem(item) {
         tags = this.value.split(",")
         b = new FormData()
         b.append("Query", JSON.stringify(item))
-        fetch(`http://${location.host}/API/JSON/Query`, {
+        fetch(`${location.protocol}//${location.host}/API/JSON/Query`, {
             method: "POST",
             body: b,
         }).then(
@@ -93,7 +93,7 @@ function HandleItem(item) {
     item.location.forEach(elem => {
         a = document.createElement('a')
         a.innerText = elem
-        a.href = location + elem
+        a.href = "view/" + item.sha1 + elem.substr(elem.lastIndexOf("/"))
         locations.appendChild(a)
         locations.appendChild(document.createElement('br'))
     });
@@ -174,7 +174,7 @@ function UpdateTag(item) {
     b = new FormData()
 
     b.append("item", JSON.stringify(item))
-    fetch(`http://${location.host}/API/JSON/UpdateTag`, {
+    fetch(`${location.protocol}//${location.host}/API/JSON/UpdateTag`, {
         method: "POST",
         body: b,
     });
@@ -186,7 +186,7 @@ function UpdateTag(item) {
 function GetQuery(item) {
     b = new FormData()
     b.append("Query", JSON.stringify(item))
-    fetch(`http://${location.host}/API/JSON/Query`, {
+    fetch(`${location.protocol}//${location.host}/API/JSON/Query`, {
         method: "POST",
         body: b,
     }).then(

@@ -107,9 +107,9 @@ func (h *APIHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 // ServeUser serves the main index page to the user.
 func ServeUser(w http.ResponseWriter, r *http.Request) {
-	p := "." + r.URL.Path
-	if p == "./" {
-		p = "./main.html"
+	p := "./www" + r.URL.Path
+	if p == "./www/" {
+		p = "./www/main.html"
 	}
 	http.ServeFile(w, r, p)
 
